@@ -1,0 +1,16 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+// กำหนดโครงสร้างตาราง
+model User {
+  id           String      @id @default(uuid())
+  firebaseId   String      @unique
+  email        String      @unique
+
+}
+model Subject {
+  id    String @id @default(uuid())
+  name  String @unique
+
+}
