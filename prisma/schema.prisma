@@ -1,16 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
+
 // กำหนดโครงสร้างตาราง
 model User {
-  id           String      @id @default(uuid())
-  firebaseId   String      @unique
-  email        String      @unique
-
+  id         String @id @default(uuid())
+  firebaseId String @unique
+  email      String @unique
+  examAttempts ExamAttempt[]
 }
-model Subject {
-  id    String @id @default(uuid())
-  name  String @unique
 
+model Subject {
+  id      String   @id @default(uuid())
+  name    String   @unique
+  topics  Topic[]
+}
+
+model Topic {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  subject   Subject   @relation(fields: [subjectId], references: [id])
+  subjectId String
+  questions Question[]
+}
+
+model Question {
+  id        String   @id @default(uuid())
+  text      String
+  topic     Topic    @relation(fields: [topicId], references: [id])
+  topicId   String
+  choices   Choice[]
+}
+
+model Choice {
+  id         String   @id @default(uuid())
+  text       String
+  isCorrect  Boolean  @default(false)
+  question   Question @relation(fields: [questionId], references: [id])
+  questionId String
+}
+
+model ExamAttempt {
+  id        String   @id @default(uuid())
+  score     Int
+  date      DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
 }
