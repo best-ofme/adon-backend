@@ -10,32 +10,42 @@ import quizRoutes from './quiz-routes'; // ต้องมีไฟล์นี�
 dotenv.config();
 
 // --- Firebase Initialization ---
-// โหลด service account จาก environment variable
+// โหลด service account จาก environment variable ที่แยกส่วนกัน
+const privateKeyEnv = process.env.FIREBASE_PRIVATE_KEY;
+const clientEmailEnv = process.env.FIREBASE_CLIENT_EMAIL;
 
 // ⚡️ START DIAGNOSTIC LOGGING ⚡️
-console.log(`[FIREBASE DIAGNOSTIC] Checking for SERVICE_ACCOUNT_KEY...`);
-const key = process.env.SERVICE_ACCOUNT_KEY;
-console.log(`[FIREBASE DIAGNOSTIC] Key is present: ${!!key}`);
-if (key) {
-    console.log(`[FIREBASE DIAGNOSTIC] Key length: ${key.length}`);
-    // แสดงเฉพาะส่วนเริ่มต้นของค่า เพื่อให้แน่ใจว่ามันถูกโหลดมาจริง (และไม่แสดงคีย์ทั้งหมดเพื่อความปลอดภัย)
-    console.log(`[FIREBASE DIAGNOSTIC] Key starts with: ${key.substring(0, 50)}...`);
-}
+console.log(`[FIREBASE DIAGNOSTIC] Checking for separated keys...`);
+console.log(`[FIREBASE DIAGNOSTIC] Private Key present: ${!!privateKeyEnv}`);
+console.log(`[FIREBASE DIAGNOSTIC] Client Email present: ${!!clientEmailEnv}`);
 // ⚡️ END DIAGNOSTIC LOGGING ⚡️
 
-if (!key) {
-  // ข้อผิดพลาดนี้จะถูกแสดงเมื่อรันบน Render ถ้าไม่ได้ตั้งค่า Environment Variable
-  console.error('FATAL ERROR: SERVICE_ACCOUNT_KEY environment variable not found. Please set it in .env (local) or Render Dashboard (production) as a single line JSON string.');
+if (!privateKeyEnv || !clientEmailEnv) {
+  console.error('FATAL ERROR: FIREBASE_PRIVATE_KEY and/or FIREBASE_CLIENT_EMAIL environment variables not found.');
+  console.error('Please set these two variables in Render Dashboard using the format described.');
   process.exit(1);
 }
 
 let serviceAccount: any;
 try {
-  // พยายามแปลงสตริง JSON จาก Environment Variable ให้เป็น Object
-  serviceAccount = JSON.parse(key);
+  // 1. นำ Private Key มาแทนที่ escaped newlines (\\n) ด้วย literal newlines (\n)
+  // ซึ่งจำเป็นสำหรับ Firebase Admin SDK ในการอ่านคีย์ RSA
+  const correctedPrivateKey = privateKeyEnv.replace(/\\n/g, '\n');
+
+  // 2. สร้าง Service Account Object ที่สมบูรณ์
+  serviceAccount = {
+    type: 'service_account',
+    project_id: 'ad-on-54140', // Hardcode project ID ที่คุณเคยให้มา
+    client_email: clientEmailEnv,
+    private_key: correctedPrivateKey,
+    // ไม่จำเป็นต้องใช้ properties อื่นๆ เช่น client_id, auth_uri ใน Admin SDK
+  };
+
+  console.log(`[FIREBASE DIAGNOSTIC] Successfully constructed serviceAccount object.`);
+  console.log(`[FIREBASE DIAGNOSTIC] Using Client Email: ${serviceAccount.client_email}`);
+
 } catch (e) {
-  // ข้อผิดพลาดนี้จะถูกแสดงถ้า JSON string มีการจัดรูปแบบผิดพลาด
-  console.error('FATAL ERROR: Failed to parse SERVICE_ACCOUNT_KEY. Ensure it is a single-line, valid JSON string.', e);
+  console.error('FATAL ERROR: Failed to construct service account object.', e);
   process.exit(1);
 }
 
@@ -46,7 +56,7 @@ try {
     });
     console.log("Firebase Admin SDK initialized successfully.");
 } catch (e) {
-    console.error("FATAL ERROR: Firebase initialization failed. Check SERVICE_ACCOUNT_KEY content and format.", e);
+    console.error("FATAL ERROR: Firebase initialization failed (Admin SDK). Check the project_id and keys.", e);
     process.exit(1);
 }
 // --- End Firebase Initialization ---
